@@ -27,8 +27,10 @@ WORKDIR /tmp/firmware
 COPY . /tmp/firmware
 
 # Build
-RUN bash ./bin/build-native.sh "$PIO_ENV" && \
-    cp "/tmp/firmware/release/meshtasticd_linux_$(uname -m)" "/tmp/firmware/release/meshtasticd"
+RUN pio pkg install -e "$PIO_ENV" \
+    && python3 ./bin/patch_portduino_wifi_eof.py \
+    && bash ./bin/build-native.sh "$PIO_ENV" \
+    && cp "/tmp/firmware/release/meshtasticd_linux_$(uname -m)" "/tmp/firmware/release/meshtasticd"
 
 # Fetch web assets
 RUN curl -L "https://github.com/meshtastic/web/releases/download/v$(cat /tmp/firmware/bin/web.version)/build.tar" -o /tmp/web.tar \

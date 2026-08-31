@@ -49,7 +49,10 @@ enum lora_module_enum {
     use_lr1120,
     use_lr1121,
     use_llcc68,
-    use_lr2021
+    use_lr2021,
+    // Keep this appended: wasm_set_lora_module() and other external callers
+    // pass the historical enum values numerically.
+    use_openhop
 };
 
 struct pinMapping {
@@ -81,7 +84,7 @@ extern struct portduino_config_struct {
     std::map<lora_module_enum, std::string> loraModules = {{use_simradio, "sim"},  {use_autoconf, "auto"}, {use_rf95, "RF95"},
                                                            {use_sx1262, "sx1262"}, {use_sx1268, "sx1268"}, {use_sx1280, "sx1280"},
                                                            {use_lr1110, "lr1110"}, {use_lr1120, "lr1120"}, {use_lr1121, "lr1121"},
-                                                           {use_llcc68, "LLCC68"}, {use_lr2021, "lr2021"}};
+                                                           {use_llcc68, "LLCC68"}, {use_lr2021, "lr2021"}, {use_openhop, "openHop"}};
 
     std::map<screen_modules, std::string> screen_names = {{x11, "X11"},         {fb, "FB"},           {st7789, "ST7789"},
                                                           {st7735, "ST7735"},   {st7735s, "ST7735S"}, {st7796, "ST7796"},
@@ -128,6 +131,15 @@ extern struct portduino_config_struct {
     std::string gps_serial_path = "";
     std::string gpsd_host = "";
     int gpsd_port = 2947;
+
+    // openHop modem TCP transport.
+    bool openhop_enabled = false;
+    std::string openhop_host = "";
+    uint16_t openhop_port = 5055;
+    std::string openhop_token = "";
+    uint32_t openhop_connect_timeout_ms = 5000;
+    uint32_t openhop_reconnect_initial_ms = 1000;
+    uint32_t openhop_reconnect_max_ms = 30000;
 
     // I2C
     std::string i2cdev = "";
@@ -385,6 +397,20 @@ extern struct portduino_config_struct {
             out << YAML::EndMap; // rfswitch_table
         }
         out << YAML::EndMap; // Lora
+
+        // Token is configuration data, not a log value. Keep it only for
+        // YAML round-tripping; no logging path should print openhop_token.
+        if (openhop_enabled || !openhop_host.empty() || !openhop_token.empty()) {
+            out << YAML::Key << "OpenHop" << YAML::Value << YAML::BeginMap;
+            out << YAML::Key << "Host" << YAML::Value << openhop_host;
+            out << YAML::Key << "Port" << YAML::Value << openhop_port;
+            if (!openhop_token.empty())
+                out << YAML::Key << "Token" << YAML::Value << openhop_token;
+            out << YAML::Key << "ConnectTimeout" << YAML::Value << openhop_connect_timeout_ms;
+            out << YAML::Key << "ReconnectInterval" << YAML::Value << openhop_reconnect_initial_ms;
+            out << YAML::Key << "ReconnectMaxInterval" << YAML::Value << openhop_reconnect_max_ms;
+            out << YAML::EndMap; // OpenHop
+        }
 
         if (!extra_pins.empty()) {
             out << YAML::Key << "GPIO" << YAML::Value << YAML::BeginMap;

@@ -1,3 +1,12 @@
+#ifdef OPENHOP_FOCUSED_TEST
+
+// The focused OpenHop test environment intentionally does not build the
+// Meshtastic test support stack. Keep this translation unit harmless because
+// PlatformIO also discovers the shared helper at test/TestUtil.cpp.
+int openhop_focused_test_util_anchor = 0;
+
+#else
+
 // First, in its own block so the include sorter keeps it there: configuration.h supplies the
 // variant defines mesh-pb-constants.h needs (portduino resolves MAX_NUM_NODES at runtime).
 #include "configuration.h"
@@ -330,3 +339,5 @@ void testStateCheckpoint(const char *testName, const char *sourceFile)
 }
 
 #endif
+
+#endif // OPENHOP_FOCUSED_TEST

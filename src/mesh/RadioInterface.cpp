@@ -26,6 +26,9 @@
 
 #ifdef ARCH_PORTDUINO
 #include "platform/portduino/PortduinoGlue.h"
+#if !defined(ARCH_PORTDUINO_WASM)
+#include "platform/portduino/OpenHopRadio.h"
+#endif
 #include "platform/portduino/SimRadio.h"
 #include "platform/portduino/USBHal.h"
 #endif
@@ -375,6 +378,22 @@ std::unique_ptr<RadioInterface> initLoRa()
     std::unique_ptr<RadioInterface> rIf = nullptr;
 
 #if ARCH_PORTDUINO
+#if !defined(ARCH_PORTDUINO_WASM)
+    // openHop is a network radio. Do not construct or destroy SPI/RadioLib
+    // HAL resources on this path. TcpSession reconnects asynchronously, so
+    // an unavailable modem is deferred rather than fatal at firmware boot.
+    if (portduino_config.lora_module == use_openhop) {
+        rIf = std::unique_ptr<RadioInterface>(new OpenHopRadio());
+        if (!rIf->init()) {
+            LOG_WARN("No usable openHop modem configuration");
+            rIf = nullptr;
+        } else {
+            LOG_INFO("openHop radio init success (modem connection deferred)");
+        }
+        return rIf;
+    }
+#endif
+
     SPISettings loraSpiSettings(portduino_config.spiSpeed, MSBFIRST, SPI_MODE0);
 #else
     SPISettings loraSpiSettings(4000000, MSBFIRST, SPI_MODE0);
@@ -405,6 +424,10 @@ std::unique_ptr<RadioInterface> initLoRa()
             return std::unique_ptr<RadioInterface>(new LR2021Interface(hal, cs, irq, rst, busy));
         case use_simradio:
             return std::unique_ptr<RadioInterface>(new SimRadio);
+#if !defined(ARCH_PORTDUINO_WASM)
+        case use_openhop:
+            return std::unique_ptr<RadioInterface>(new OpenHopRadio);
+#endif
         default:
             assert(0); // shouldn't happen
             return std::unique_ptr<RadioInterface>(nullptr);

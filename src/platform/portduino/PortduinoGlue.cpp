@@ -940,6 +940,8 @@ bool loadConfig(const char *configPath)
                     std::cerr << "Unknown Lora.Module: " << moduleName << std::endl;
                     exit(EXIT_FAILURE);
                 }
+                if (portduino_config.lora_module == use_openhop)
+                    portduino_config.openhop_enabled = true;
             }
             if (yamlConfig["Lora"]["SX126X_MAX_POWER"])
                 portduino_config.sx126x_max_power = yamlConfig["Lora"]["SX126X_MAX_POWER"].as<int>(22);
@@ -1059,6 +1061,35 @@ bool loadConfig(const char *configPath)
                         portduino_config.rfswitch_table[6].values[i] = HIGH;
                 }
             }
+        }
+
+        if (yamlConfig["OpenHop"]) {
+            YAML::Node openhop = yamlConfig["OpenHop"];
+            portduino_config.openhop_enabled = true;
+            portduino_config.openhop_host = openhop["Host"].as<std::string>("");
+            int openhop_port = openhop["Port"].as<int>(5055);
+            if (openhop_port < 1 || openhop_port > 65535) {
+                std::cerr << "OpenHop.Port must be in range [1, 65535]" << std::endl;
+                return false;
+            }
+            portduino_config.openhop_port = static_cast<uint16_t>(openhop_port);
+            // Do not log this value. It is retained only for authentication
+            // and future OpenHopRadio/session integration.
+            portduino_config.openhop_token = openhop["Token"].as<std::string>("");
+            portduino_config.openhop_connect_timeout_ms =
+                openhop["ConnectTimeout"].as<uint32_t>(openhop["ConnectTimeoutMs"].as<uint32_t>(5000));
+            portduino_config.openhop_reconnect_initial_ms =
+                openhop["ReconnectInterval"].as<uint32_t>(openhop["ReconnectInitialMs"].as<uint32_t>(1000));
+            portduino_config.openhop_reconnect_max_ms =
+                openhop["ReconnectMaxInterval"].as<uint32_t>(openhop["ReconnectMaxMs"].as<uint32_t>(30000));
+            if (portduino_config.openhop_connect_timeout_ms == 0 ||
+                portduino_config.openhop_reconnect_initial_ms == 0 ||
+                portduino_config.openhop_reconnect_max_ms == 0) {
+                std::cerr << "OpenHop timeout and reconnect values must be greater than zero" << std::endl;
+                return false;
+            }
+            if (portduino_config.openhop_reconnect_max_ms < portduino_config.openhop_reconnect_initial_ms)
+                portduino_config.openhop_reconnect_max_ms = portduino_config.openhop_reconnect_initial_ms;
         }
         readGPIOFromYaml(yamlConfig["GPIO"]["User"], portduino_config.userButtonPin);
         if (yamlConfig["GPS"]) {
